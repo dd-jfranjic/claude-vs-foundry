@@ -1,0 +1,28 @@
+# Build outputs
+bin/
+obj/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+.vs/
+
+# VSIX build
+*.vsix
+
+# NuGet
+packages/
+*.nupkg
+
+# Logs
+*.log
+
+# OS
+Thumbs.db
+.DS_Store
+
+# Un-redacted screenshot originals (contain email/paths/private code — never commit)
+docs/images/raw/
+
+# Upgrade logs
+UpgradeLog.htm

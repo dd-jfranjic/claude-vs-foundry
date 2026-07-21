@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="utf-8"?>
+<CommandTable xmlns="http://schemas.microsoft.com/VisualStudio/2005-10-18/CommandTable" xmlns:xs="http://www.w3.org/2001/XMLSchema">
+
+  <Commands package="ClaudeCodePackage">
+    <Groups>
+      <!-- Group under View > Other Windows. -->
+      <Group guid="ClaudeCodeCmdSet" id="ClaudeCodeMenuGroup" priority="0x0600">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
+      </Group>
+    </Groups>
+
+    <Buttons>
+      <!-- Sits in the View menu's window-list cluster (Solution Explorer ... GitHub Copilot Chat).
+           A high priority drops it to the end of that block, i.e. just below GitHub Copilot Chat.
+           Plain button (no checked/toggle state) with an image-moniker icon. -->
+      <Button guid="ClaudeCodeCmdSet" id="OpenClaudeChat" priority="0xFFF0" type="Button">
+        <Parent guid="guidSHLMainMenu" id="IDG_VS_VIEW_ORG_WINDOWS" />
+        <Icon guid="ImageCatalogGuid" id="CommentSparkle" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Claude Code</ButtonText>
+          <LocCanonicalName>.View.ClaudeCode</LocCanonicalName>
+        </Strings>
+      </Button>
+    </Buttons>
+  </Commands>
+
+  <!-- Also surface the command under View > Other Windows. -->
+  <CommandPlacements>
+    <CommandPlacement guid="ClaudeCodeCmdSet" id="OpenClaudeChat" priority="0x0100">
+      <Parent guid="ClaudeCodeCmdSet" id="ClaudeCodeMenuGroup" />
+    </CommandPlacement>
+  </CommandPlacements>
+
+  <Symbols>
+    <GuidSymbol name="ClaudeCodePackage" value="{15FC1958-19BD-4195-8BB9-AFD6DD0F334C}" />
+    <GuidSymbol name="ClaudeCodeCmdSet" value="{6DECCA05-E7F8-4DB9-9464-B88215C64A25}">
+      <IDSymbol name="ClaudeViewGroup" value="0x1010" />
+      <IDSymbol name="ClaudeCodeMenuGroup" value="0x1020" />
+      <IDSymbol name="ClaudeToolbarGroup" value="0x1030" />
+      <IDSymbol name="OpenClaudeChat" value="0x0100" />
+    </GuidSymbol>
+
+    <!-- VS shell main menu + the View-menu groups we anchor to. Defined inline so the .vsct does
+         not depend on stdidcmd.h / vsshlids.h being on the VSCT include path. -->
+    <GuidSymbol name="guidSHLMainMenu" value="{D309F791-903F-11D0-9EFC-00A0C911004F}">
+      <IDSymbol name="IDG_VS_VIEW_ORG_WINDOWS" value="0x0721" />
+      <IDSymbol name="IDG_VS_WNDO_OTRWNDWS1" value="0x019F" />
+    </GuidSymbol>
+
+    <!-- Visual Studio Image Catalog (KnownMonikers). CommentSparkle = 4059. -->
+    <GuidSymbol name="ImageCatalogGuid" value="{ae27a6b0-e345-4288-96df-5eaf394ee369}">
+      <IDSymbol name="CommentSparkle" value="4059" />
+    </GuidSymbol>
+  </Symbols>
+</CommandTable>

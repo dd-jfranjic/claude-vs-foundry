@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<PackageManifest Version="2.0.0" xmlns="http://schemas.microsoft.com/developer/vsx-schema/2011" xmlns:d="http://schemas.microsoft.com/developer/vsx-schema-design/2011">
+  <Metadata>
+    <!-- Distinct Identity Id from the other VSIXs: the marketplace treats each Id as one
+         extension with one VSIX, so the VS 2017 flavor ships as its own listing. -->
+    <Identity Id="ClaudeCode.VisualStudio.Vs2017.15FC1958-19BD-4195-8BB9-AFD6DD0F334C" Version="0.3.1" Language="en-US" Publisher="Nachum Shmilovitz" />
+    <DisplayName>Claude Code for Visual Studio 2017 (Unofficial)</DisplayName>
+    <Description xml:space="preserve">Claude Code brings Anthropic's agentic coding assistant into Visual Studio 2017 as a native chat tool window, docked next to Solution Explorer — the same experience as the VS Code extension. Chat about your open solution; Claude reads and edits your code, runs tools, and shows each step inline. Pick the model, permission mode, and reasoning effort in the composer; review edits as an inline diff; and, while debugging, let Claude read the paused runtime (call stack, locals, exceptions) to find the root cause. Powered by your local Claude Code CLI — your login, CLAUDE.md, MCP servers, and settings. Requires Visual Studio 2017 (15.7+) and the WebView2 Runtime.</Description>
+    <MoreInfo>https://www.anthropic.com/claude-code</MoreInfo>
+    <License>Resources\LICENSE.txt</License>
+    <Icon>Resources\Icon.png</Icon>
+    <PreviewImage>Resources\Preview.png</PreviewImage>
+    <Tags>claude;claude code;ai;assistant;agent;chat;anthropic;copilot;llm;pair programming</Tags>
+  </Metadata>
+  <Installation>
+    <!-- No ProductArchitecture element: VS 2017 is x86-only and its setup engine predates
+         that element (introduced for VS 2022). -->
+    <InstallationTarget Id="Microsoft.VisualStudio.Community" Version="[15.0,16.0)" />
+    <InstallationTarget Id="Microsoft.VisualStudio.Pro" Version="[15.0,16.0)" />
+    <InstallationTarget Id="Microsoft.VisualStudio.Enterprise" Version="[15.0,16.0)" />
+  </Installation>
+  <Dependencies>
+    <Dependency Id="Microsoft.Framework.NDP" DisplayName="Microsoft .NET Framework" d:Source="Manual" Version="[4.7.2,)" />
+  </Dependencies>
+  <Prerequisites>
+    <Prerequisite Id="Microsoft.VisualStudio.Component.CoreEditor" Version="[15.0,16.0)" DisplayName="Visual Studio core editor" />
+  </Prerequisites>
+  <Assets>
+    <Asset Type="Microsoft.VisualStudio.VsPackage" d:Source="Project" d:ProjectName="%CurrentProject%" Path="|%CurrentProject%;PkgdefProjectOutputGroup|" />
+  </Assets>
+</PackageManifest>

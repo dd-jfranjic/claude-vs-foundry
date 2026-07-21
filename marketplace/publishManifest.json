@@ -1,0 +1,13 @@
+{
+  "$schema": "http://json.schemastore.org/vsix-publish",
+  "categories": [ "coding", "programming languages" ],
+  "identity": {
+    "internalName": "ClaudeCodeForVisualStudio"
+  },
+  "overview": "overview.md",
+  "publisher": "<YOUR_MARKETPLACE_PUBLISHER_ID>",
+  "priceCategory": "free",
+  "private": false,
+  "qna": true,
+  "repo": "https://github.com/nachum-shmilovitz-66/claude-code-visualstudio"
+}
