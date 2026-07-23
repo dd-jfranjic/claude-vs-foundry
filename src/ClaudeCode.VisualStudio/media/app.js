@@ -7,6 +7,7 @@
     messages: $("messages"), input: $("input"),
     sendBtn: $("sendBtn"), stopBtn: $("stopBtn"),
     modelBtn: $("modelBtn"), contextBtn: $("contextBtn"), usageBtn: $("usageBtn"),
+    historyBtn: $("historyBtn"),
     plusBtn: $("plusBtn"), slashBtn: $("slashBtn"), ringBtn: $("ringBtn"), ringFg: $("ringFg"),
     modeBtn: $("modeBtn"), modeLabel: $("modeLabel"),
     statusText: $("statusText"), usage: $("usage"), attachments: $("attachments"),
@@ -20,6 +21,7 @@
   let commandsLoading = false;
   let fileList = [], atQuery = "", atItems = [], atIndex = 0;
   let models = [], modes = [], efforts = [], effortsByModel = {};
+  let lastHistory = null;   // session-history popover data (null = loading)
   // effort "extrahigh" (CLI --effort xhigh) out of the box: the deepest sustained-reasoning
   // level — the right default for code analysis; per-directory persisted choices still win.
   let cur = { model: "default", mode: "default", effort: "extrahigh" };
@@ -260,6 +262,7 @@
       endTurn(); scrollDown();
     },
     accountData: (p) => { acct = p; if (topOpen === "usage") renderUsage(); },
+    historyData: (p) => { lastHistory = p.sessions || []; if (topOpen === "history") renderHistory(); },
     mcpList: (p) => { lastMcp = p.servers || []; lastMcpError = p.error || null; if (topOpen === "mcp") renderMcp(); },
     compacted: (p) => { removeThinking(); endTurn(); const n = document.createElement("div"); n.className = "compacted-divider"; n.innerHTML = '<span>Compacted</span>'; els.messages.appendChild(n); ctx.used = 0; ctx.baseline = 0; updateRing(); scrollDown(); },
     attachImage: (p) => { attachments.push({ mediaType: p.mediaType, data: p.data, name: p.name }); renderAttachments(); },
@@ -492,21 +495,22 @@
   els.modelBtn.addEventListener("click", () => toggleTop("model"));
   els.contextBtn.addEventListener("click", () => toggleTop("context"));
   els.usageBtn.addEventListener("click", () => toggleTop("usage"));
+  els.historyBtn.addEventListener("click", () => toggleTop("history"));
   els.plusBtn.addEventListener("click", () => toggleC("plus"));
   els.slashBtn.addEventListener("click", () => toggleC("slash"));
   els.modeBtn.addEventListener("click", () => toggleC("mode"));
 
   document.addEventListener("mousedown", (e) => {
-    if (topOpen && !els.popover.contains(e.target) && !e.target.closest("#modelBtn,#contextBtn,#usageBtn")) closeTop();
+    if (topOpen && !els.popover.contains(e.target) && !e.target.closest("#modelBtn,#contextBtn,#usageBtn,#historyBtn")) closeTop();
     if (cOpen && !els.cpop.contains(e.target) && !e.target.closest("#plusBtn,#slashBtn,#modeBtn,#input")) closeC();
   });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape") closeAll(); });
 
   // ---- top popovers ----
   function resetTotals() { totals.costUsd = 0; totals.inputTokens = 0; totals.outputTokens = 0; totals.cacheReadTokens = 0; totals.cacheCreationTokens = 0; totals.turns = 0; els.usage.textContent = ""; }
-  function activeTop() { [["model", els.modelBtn], ["context", els.contextBtn], ["usage", els.usageBtn]].forEach(([k, b]) => b.classList.toggle("active", topOpen === k)); }
+  function activeTop() { [["model", els.modelBtn], ["context", els.contextBtn], ["usage", els.usageBtn], ["history", els.historyBtn]].forEach(([k, b]) => b.classList.toggle("active", topOpen === k)); }
   function closeTop() { topOpen = null; els.popover.classList.add("hidden"); els.popover.innerHTML = ""; activeTop(); }
-  function openTop(which) { closeC(); topOpen = which; activeTop(); if (which === "model") renderModel(); else if (which === "context") { post("getContext"); renderContext(); } else if (which === "usage") { post("getUsage"); renderUsage(); } else if (which === "mcp") { lastMcp = null; post("getMcp"); renderMcp(); } }
+  function openTop(which) { closeC(); topOpen = which; activeTop(); if (which === "model") renderModel(); else if (which === "context") { post("getContext"); renderContext(); } else if (which === "usage") { post("getUsage"); renderUsage(); } else if (which === "mcp") { lastMcp = null; post("getMcp"); renderMcp(); } else if (which === "history") { lastHistory = null; post("getHistory"); renderHistory(); } }
   function toggleTop(w) { if (topOpen === w) closeTop(); else openTop(w); }
   function showTop(html) { els.popover.innerHTML = html; els.popover.classList.remove("hidden"); const x = els.popover.querySelector(".close-x"); if (x) x.addEventListener("click", closeTop); }
 
@@ -589,6 +593,48 @@
     els.popover.querySelectorAll("#customSuggest .opt").forEach((o) =>
       o.addEventListener("click", () => apply(o.dataset.id)));
   }
+  // "2 h ago"-style label for the history list; falls back to the locale date for old items.
+  function relTime(iso) {
+    try {
+      const d = new Date(iso);
+      const mins = Math.max(0, Math.round((Date.now() - d.getTime()) / 60000));
+      if (mins < 1) return "just now";
+      if (mins < 60) return mins + " min ago";
+      const hrs = Math.round(mins / 60);
+      if (hrs < 24) return hrs + " h ago";
+      return d.toLocaleDateString();
+    } catch (e) { return ""; }
+  }
+
+  function renderHistory() {
+    let h = '<h3>Session history <button class="close-x">×</button></h3>';
+    if (!lastHistory) {
+      h += '<div class="note" style="padding:6px 0">Loading…</div>';
+    } else if (!lastHistory.length) {
+      h += '<div class="note" style="padding:6px 0">No saved sessions yet — starting a new session (/new) parks the current chat here.</div>';
+    } else {
+      lastHistory.forEach((s) => {
+        h += '<div class="hist-row" data-id="' + window.md.esc(s.id || "") + '">' +
+             '<div class="hist-main">' +
+             '<div class="hist-title">' + window.md.esc(s.title || "Untitled session") + '</div>' +
+             '<div class="hist-meta">' + window.md.esc(relTime(s.lastUtc)) + ' · ' + (s.messages | 0) + ' messages</div>' +
+             '</div>' +
+             '<button class="hist-del" title="Delete this session">×</button>' +
+             '</div>';
+      });
+    }
+    showTop(h);
+    els.popover.querySelectorAll(".hist-row").forEach((r) => {
+      r.addEventListener("click", (e) => {
+        if (e.target.closest(".hist-del")) { post("deleteSession", { id: r.dataset.id }); return; }
+        // Reopening swaps the conversation in and parks the current one in the archive.
+        resetTotals();
+        post("loadSession", { id: r.dataset.id });
+        closeTop();
+      });
+    });
+  }
+
   function renderUsage() {
     let h = '<h3>Account &amp; Usage <button class="close-x">×</button></h3>';
 
@@ -825,7 +871,8 @@
       { name: "mcp", desc: "MCP servers", run: () => openTop("mcp") },
       { name: "compact", desc: "Compact the conversation", run: () => { post("compact"); showThinking("Compacting"); } },
       { name: "clear", desc: "Clear the chat", run: () => handlers.clear() },
-      { name: "new", desc: "Start a new session", run: () => { resetTotals(); post("newSession"); } },
+      { name: "new", desc: "Start a new session (current one is kept in History)", run: () => { resetTotals(); post("newSession"); } },
+      { name: "history", desc: "Reopen a previous session", run: () => openTop("history") },
     ];
   }
   function openSlash() {

@@ -23,6 +23,15 @@ namespace ClaudeCode.VisualStudio.Services
         public List<StoredMessage> Messages { get; set; } = new List<StoredMessage>();
     }
 
+    /// <summary>One line in the per-workspace session-history index (newest first).</summary>
+    public sealed class SessionSummary
+    {
+        public string SessionId { get; set; }
+        public string Title { get; set; }
+        public DateTime LastUtc { get; set; }
+        public int MessageCount { get; set; }
+    }
+
     /// <summary>
     /// Persists a chat session (id + options + transcript) per working directory so the
     /// conversation can be restored when the tool window or Visual Studio is reopened.
@@ -76,6 +85,136 @@ namespace ClaudeCode.VisualStudio.Services
         public static void Clear(string cwd)
         {
             try { var p = FileFor(cwd); if (File.Exists(p)) File.Delete(p); }
+            catch { }
+        }
+
+        // ---------------------------------------------------------------------------------
+        // Session history (v0.4): "New session" no longer loses the old conversation — it is
+        // parked in a per-workspace archive (same DPAPI encryption as the live session) and
+        // can be listed / reopened / deleted from the panel's History popover.
+        // ---------------------------------------------------------------------------------
+
+        private const int MaxArchived = 20;
+
+        /// <summary>True when the id came from the CLI (usable with <c>--resume</c>). Sessions
+        /// archived before the CLI ever reported an id get a synthetic <c>local-</c> id: their
+        /// transcript restores fine, but the CLI starts fresh on the next message.</summary>
+        public static bool IsResumable(string id) =>
+            !string.IsNullOrEmpty(id) && !id.StartsWith("local-", StringComparison.Ordinal);
+
+        /// <summary>First user message, whitespace-collapsed and capped — the session title.</summary>
+        internal static string DeriveTitle(SessionRecord rec)
+        {
+            const int Max = 60;
+            try
+            {
+                if (rec?.Messages != null)
+                {
+                    foreach (var m in rec.Messages)
+                    {
+                        if (m == null || m.Role != "user" || string.IsNullOrWhiteSpace(m.Text)) continue;
+                        var t = System.Text.RegularExpressions.Regex.Replace(m.Text.Trim(), @"\s+", " ");
+                        return t.Length <= Max ? t : t.Substring(0, Max).TrimEnd() + "…";
+                    }
+                }
+            }
+            catch { }
+            return "Untitled session";
+        }
+
+        private static string SafeId(string id)
+        {
+            var sb = new StringBuilder();
+            foreach (var c in id ?? string.Empty)
+                if (char.IsLetterOrDigit(c) || c == '-') sb.Append(char.ToLowerInvariant(c));
+            return sb.Length > 0 ? sb.ToString() : "x";
+        }
+
+        private static string ArchiveFileFor(string cwd, string id) =>
+            FileFor(cwd).Replace(".json", ".a-" + SafeId(id) + ".json");
+
+        private static string IndexFileFor(string cwd) =>
+            FileFor(cwd).Replace(".json", ".index.json");
+
+        private static List<SessionSummary> LoadIndex(string cwd)
+        {
+            try
+            {
+                var p = IndexFileFor(cwd);
+                if (!File.Exists(p)) return new List<SessionSummary>();
+                return JsonSerializer.Deserialize<List<SessionSummary>>(File.ReadAllText(p))
+                       ?? new List<SessionSummary>();
+            }
+            catch { return new List<SessionSummary>(); }
+        }
+
+        private static void SaveIndex(string cwd, List<SessionSummary> index)
+        {
+            try
+            {
+                Directory.CreateDirectory(Dir);
+                File.WriteAllText(IndexFileFor(cwd), JsonSerializer.Serialize(index));
+            }
+            catch { }
+        }
+
+        /// <summary>Park the CURRENT session (if it has any messages) in the archive. The live
+        /// file is left in place — callers that start fresh follow up with <see cref="Clear"/>.</summary>
+        public static void ArchiveCurrent(string cwd)
+        {
+            try
+            {
+                var rec = Load(cwd);
+                if (rec?.Messages == null || rec.Messages.Count == 0) return;
+                if (string.IsNullOrEmpty(rec.SessionId))
+                    rec.SessionId = "local-" + Guid.NewGuid().ToString("N");
+
+                Directory.CreateDirectory(Dir);
+                WriteEncrypted(ArchiveFileFor(cwd, rec.SessionId), JsonSerializer.Serialize(rec));
+
+                var index = LoadIndex(cwd);
+                index.RemoveAll(s => s != null && s.SessionId == rec.SessionId);
+                index.Insert(0, new SessionSummary
+                {
+                    SessionId = rec.SessionId,
+                    Title = DeriveTitle(rec),
+                    LastUtc = DateTime.UtcNow,
+                    MessageCount = rec.Messages.Count,
+                });
+                while (index.Count > MaxArchived)
+                {
+                    var drop = index[index.Count - 1];
+                    index.RemoveAt(index.Count - 1);
+                    try { File.Delete(ArchiveFileFor(cwd, drop.SessionId)); } catch { }
+                }
+                SaveIndex(cwd, index);
+            }
+            catch { }
+        }
+
+        public static List<SessionSummary> ListArchived(string cwd) => LoadIndex(cwd);
+
+        public static SessionRecord LoadArchived(string cwd, string id)
+        {
+            try
+            {
+                var p = ArchiveFileFor(cwd, id);
+                if (!File.Exists(p)) return null;
+                var json = ReadDecrypted(p);
+                return json == null ? null : JsonSerializer.Deserialize<SessionRecord>(json);
+            }
+            catch { return null; }
+        }
+
+        public static void DeleteArchived(string cwd, string id)
+        {
+            try
+            {
+                try { File.Delete(ArchiveFileFor(cwd, id)); } catch { }
+                var index = LoadIndex(cwd);
+                index.RemoveAll(s => s != null && s.SessionId == id);
+                SaveIndex(cwd, index);
+            }
             catch { }
         }
 

@@ -46,8 +46,17 @@ namespace ClaudeCode.VisualStudio
         // solution directory once known. Cached so the send path never blocks on VS services.
         private string _cwd = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
 
-        public ClaudeChatControl()
+        // Multi-window (v0.4): window 0 is the primary — it restores and persists the
+        // per-workspace session. Extra windows (id > 0) are independent scratch chats with
+        // their own CLI process; they never touch the store, so two windows can't clobber
+        // each other's saved conversation.
+        private readonly int _toolWindowId;
+
+        public ClaudeChatControl() : this(0) { }
+
+        public ClaudeChatControl(int toolWindowId)
         {
+            _toolWindowId = toolWindowId;
             _webView = new WebView2
             {
                 HorizontalAlignment = HorizontalAlignment.Stretch,
@@ -159,6 +168,15 @@ namespace ClaudeCode.VisualStudio
                     break;
                 case "newSession":
                     ResetSession();
+                    break;
+                case "getHistory":
+                    SendHistoryList();
+                    break;
+                case "loadSession":
+                    HandleLoadSession(message.Payload);
+                    break;
+                case "deleteSession":
+                    HandleDeleteSession(message.Payload);
                     break;
                 case "setModel":
                     _model = InputValidation.SanitizeModel(GetStr(message.Payload, "model"), "default");
@@ -667,7 +685,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.3.1",
+                version = "0.4.0",
                 theme = _theme.GetThemeVariables(),
                 model = _model,
                 effort = _effort,
@@ -717,7 +735,8 @@ namespace ClaudeCode.VisualStudio
                     SendSetupStatus();
 
                     // Restore the prior options (and conversation, if any) for this working dir.
-                    if (_record == null)
+                    // Only the primary window restores — extra windows start as fresh scratch chats.
+                    if (_toolWindowId == 0 && _record == null)
                     {
                         var rec = SessionStore.Load(_cwd);
                         if (rec != null)
@@ -1175,8 +1194,70 @@ namespace ClaudeCode.VisualStudio
             _session = null;
             _pendingResumeId = null;
             _record = null;
-            SessionStore.Clear(_cwd);
+            if (_toolWindowId == 0)
+            {
+                // "New session" parks the old conversation in the history archive instead of
+                // losing it — it stays reopenable from the History popover.
+                SessionStore.ArchiveCurrent(_cwd);
+                SessionStore.Clear(_cwd);
+            }
             _host.PostMessage("clear", new { });
+        }
+
+        // --- Session history (v0.4): list / reopen / delete archived conversations ----------
+
+        private void SendHistoryList()
+        {
+            var items = SessionStore.ListArchived(_cwd);
+            _host.PostMessage("historyData", new
+            {
+                sessions = items.ConvertAll(s => new
+                {
+                    id = s.SessionId,
+                    title = s.Title,
+                    lastUtc = s.LastUtc.ToString("o"),
+                    messages = s.MessageCount,
+                }),
+            });
+        }
+
+        private void HandleLoadSession(JsonElement payload)
+        {
+            string id = GetStr(payload, "id");
+            if (string.IsNullOrEmpty(id)) return;
+            var rec = SessionStore.LoadArchived(_cwd, id);
+            if (rec == null) { SendHistoryList(); return; }
+
+            // Park the current conversation first, then make the loaded one live again. The CLI
+            // session restarts lazily on the next message via --resume — the exact same path the
+            // restore-on-open flow uses (model/mode switches already rely on it).
+            if (_toolWindowId == 0) SessionStore.ArchiveCurrent(_cwd);
+            SessionStore.DeleteArchived(_cwd, id);
+            _session?.Dispose();
+            _session = null;
+            _record = rec;
+            _pendingResumeId = SessionStore.IsResumable(rec.SessionId) ? rec.SessionId : null;
+            _model = InputValidation.SanitizeModel(rec.Model, "default");
+            _permissionMode = InputValidation.SanitizeChoice(rec.Mode, InputValidation.AllowedModes, "default");
+            _effort = InputValidation.SanitizeChoice(rec.Effort, InputValidation.AllowedEfforts, "none");
+            _showThinking = rec.ShowThinking;
+            if (_toolWindowId == 0) SessionStore.Save(_cwd, rec);
+            _host.PostMessage("restore", new
+            {
+                messages = rec.Messages ?? new List<StoredMessage>(),
+                model = _model,
+                mode = _permissionMode,
+                effort = _effort,
+                showThinking = _showThinking,
+            });
+            SendHistoryList();
+        }
+
+        private void HandleDeleteSession(JsonElement payload)
+        {
+            string id = GetStr(payload, "id");
+            if (!string.IsNullOrEmpty(id)) SessionStore.DeleteArchived(_cwd, id);
+            SendHistoryList();
         }
 
         // Persist a turn to the per-cwd session store so the conversation can be restored later.
@@ -1191,7 +1272,7 @@ namespace ClaudeCode.VisualStudio
                 _record.Mode = _permissionMode;
                 _record.Effort = _effort;
                 _record.ShowThinking = _showThinking;
-                SessionStore.Save(_cwd, _record);
+                if (_toolWindowId == 0) SessionStore.Save(_cwd, _record);
             }
             catch { }
         }
@@ -1208,7 +1289,7 @@ namespace ClaudeCode.VisualStudio
                 _record.Mode = _permissionMode;
                 _record.Effort = _effort;
                 _record.ShowThinking = _showThinking;
-                SessionStore.Save(_cwd, _record);
+                if (_toolWindowId == 0) SessionStore.Save(_cwd, _record);
             }
             catch { }
         }

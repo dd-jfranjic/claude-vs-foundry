@@ -17,13 +17,16 @@ namespace ClaudeCode.VisualStudio
     /// </summary>
     public class ClaudeChatToolWindow : BaseToolWindow<ClaudeChatToolWindow>
     {
-        public override string GetTitle(int toolWindowId) => "Claude Code";
+        // Multi-window (v0.4): id 0 is the primary window (restores/persists the workspace
+        // session); higher ids are independent scratch chats opened via "Claude Code - New Window".
+        public override string GetTitle(int toolWindowId) =>
+            toolWindowId == 0 ? "Claude Code" : "Claude Code " + (toolWindowId + 1);
 
         public override Type PaneType => typeof(Pane);
 
         public override Task<FrameworkElement> CreateAsync(int toolWindowId, CancellationToken cancellationToken)
         {
-            return Task.FromResult<FrameworkElement>(new ClaudeChatControl());
+            return Task.FromResult<FrameworkElement>(new ClaudeChatControl(toolWindowId));
         }
 
         [Guid(PackageGuids.ClaudeChatToolWindowString)]

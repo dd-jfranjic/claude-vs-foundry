@@ -22,6 +22,18 @@
           <LocCanonicalName>.View.ClaudeCode</LocCanonicalName>
         </Strings>
       </Button>
+
+      <!-- Opens an ADDITIONAL independent chat window (v0.4 multi-window). Lives only under
+           View > Other Windows so the main View menu keeps a single Claude Code entry. -->
+      <Button guid="ClaudeCodeCmdSet" id="NewClaudeChatWindow" priority="0x0110" type="Button">
+        <Parent guid="ClaudeCodeCmdSet" id="ClaudeCodeMenuGroup" />
+        <Icon guid="ImageCatalogGuid" id="CommentSparkle" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Claude Code - New Window</ButtonText>
+          <LocCanonicalName>.View.ClaudeCodeNewWindow</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
 
@@ -39,6 +51,7 @@
       <IDSymbol name="ClaudeCodeMenuGroup" value="0x1020" />
       <IDSymbol name="ClaudeToolbarGroup" value="0x1030" />
       <IDSymbol name="OpenClaudeChat" value="0x0100" />
+      <IDSymbol name="NewClaudeChatWindow" value="0x0101" />
     </GuidSymbol>
 
     <!-- VS shell main menu + the View-menu groups we anchor to. Defined inline so the .vsct does
