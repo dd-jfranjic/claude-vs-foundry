@@ -685,7 +685,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.0",
+                version = "0.4.1",
                 theme = _theme.GetThemeVariables(),
                 model = _model,
                 effort = _effort,
@@ -1231,8 +1231,13 @@ namespace ClaudeCode.VisualStudio
             // Park the current conversation first, then make the loaded one live again. The CLI
             // session restarts lazily on the next message via --resume — the exact same path the
             // restore-on-open flow uses (model/mode switches already rely on it).
-            if (_toolWindowId == 0) SessionStore.ArchiveCurrent(_cwd);
-            SessionStore.DeleteArchived(_cwd, id);
+            // Scratch windows (id > 0) open a READ-ONLY COPY instead: they never persist, so
+            // removing the entry here would lose the conversation for the primary window.
+            if (_toolWindowId == 0)
+            {
+                SessionStore.ArchiveCurrent(_cwd);
+                SessionStore.DeleteArchived(_cwd, id);
+            }
             _session?.Dispose();
             _session = null;
             _record = rec;
