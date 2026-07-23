@@ -131,6 +131,35 @@ namespace ClaudeCode.VisualStudio.Tests
         }
 
         [TestMethod]
+        public void SaveJournal_WritesReadableMarkdown()
+        {
+            var cwd = NewCwd();
+            var rec = new SessionRecord { SessionId = "sid-j1", Model = "opus" };
+            rec.Messages.Add(new StoredMessage { Role = "user", Text = "analiziraj Depots sync" });
+            rec.Messages.Add(new StoredMessage { Role = "assistant", Text = "Evo analize." });
+
+            SessionStore.SaveJournal(cwd, rec);
+
+            var dir = SessionStore.JournalDir();
+            Assert.IsTrue(System.IO.Directory.Exists(dir));
+            string found = null;
+            foreach (var f in System.IO.Directory.GetFiles(dir, "*.md"))
+            {
+                var body = System.IO.File.ReadAllText(f);
+                if (body.Contains("analiziraj Depots sync")) { found = f; break; }
+            }
+            try
+            {
+                Assert.IsNotNull(found, "journal .md not written");
+                var text = System.IO.File.ReadAllText(found);
+                StringAssert.Contains(text, "Korisnik");
+                StringAssert.Contains(text, "Evo analize.");
+                Assert.AreNotEqual(default(DateTime), rec.StartedUtc);
+            }
+            finally { if (found != null) System.IO.File.Delete(found); }
+        }
+
+        [TestMethod]
         public void Load_Missing_ReturnsNull()
         {
             Assert.IsNull(SessionStore.Load(NewCwd()));

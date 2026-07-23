@@ -688,7 +688,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.4",
+                version = "0.4.5",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new
@@ -1282,6 +1282,9 @@ namespace ClaudeCode.VisualStudio
                     case "history":
                         path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeCodeVS", "sessions");
                         break;
+                    case "journal":
+                        path = SessionStore.JournalDir();
+                        break;
                     case "project":
                         path = _cwd;
                         break;
@@ -1314,7 +1317,12 @@ namespace ClaudeCode.VisualStudio
                 _record.Mode = _permissionMode;
                 _record.Effort = _effort;
                 _record.ShowThinking = _showThinking;
-                if (_toolWindowId == 0) SessionStore.Save(_cwd, _record);
+                if (_toolWindowId == 0)
+                {
+                    SessionStore.Save(_cwd, _record);
+                    // Readable autosave: plain-.md journal next to the encrypted store.
+                    SessionStore.SaveJournal(_cwd, _record);
+                }
             }
             catch { }
         }

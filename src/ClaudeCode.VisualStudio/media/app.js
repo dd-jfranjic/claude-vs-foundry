@@ -694,6 +694,7 @@
       h += sRow("Auto-memory (CLI notes)", storageInfo.globalDir + "\\projects\\", "global");
       h += sRow("Project folder (memorija\\)", "the open solution's folder", "project");
       h += sRow("Chat history (this panel)", storageInfo.history + "  (encrypted)", "history");
+      h += sRow("Session journal (readable .md, plain text!)", storageInfo.globalDir + "\\vs-dnevnik\\", "journal");
     }
     showTop(h);
 

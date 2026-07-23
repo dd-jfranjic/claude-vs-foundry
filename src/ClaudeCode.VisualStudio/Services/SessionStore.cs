@@ -20,6 +20,7 @@ namespace ClaudeCode.VisualStudio.Services
         public string Mode { get; set; } = "default";
         public string Effort { get; set; } = "none";
         public bool ShowThinking { get; set; } = true;
+        public DateTime StartedUtc { get; set; }
         public List<StoredMessage> Messages { get; set; } = new List<StoredMessage>();
     }
 
@@ -193,6 +194,51 @@ namespace ClaudeCode.VisualStudio.Services
         }
 
         public static List<SessionSummary> ListArchived(string cwd) => LoadIndex(cwd);
+
+        /// <summary>
+        /// Plain-Markdown mirror of the conversation ("dnevnik") — one readable .md per
+        /// session under <c>~/.claude/vs-dnevnik</c>, rewritten after every turn. DELIBERATELY
+        /// unencrypted: the point is that the user (and Claude itself, when asked "what did we
+        /// do yesterday?") can open and read it. The encrypted per-workspace store stays the
+        /// restore source of truth.
+        /// </summary>
+        public static void SaveJournal(string cwd, SessionRecord rec)
+        {
+            try
+            {
+                if (rec?.Messages == null || rec.Messages.Count == 0) return;
+                var dir = JournalDir();
+                Directory.CreateDirectory(dir);
+                if (rec.StartedUtc == default(DateTime)) rec.StartedUtc = DateTime.UtcNow;
+
+                var slug = DeriveTitle(rec);
+                foreach (var c in Path.GetInvalidFileNameChars()) slug = slug.Replace(c, ' ');
+                if (slug.Length > 40) slug = slug.Substring(0, 40).TrimEnd();
+                var file = Path.Combine(dir,
+                    rec.StartedUtc.ToLocalTime().ToString("yyyy-MM-dd HHmm") + " " + slug + ".md");
+
+                var sb = new StringBuilder();
+                sb.AppendLine("# " + DeriveTitle(rec));
+                sb.AppendLine();
+                sb.AppendLine("- Radni direktorij: " + (cwd ?? ""));
+                sb.AppendLine("- Model: " + rec.Model + " · mod: " + rec.Mode + " · effort: " + rec.Effort);
+                sb.AppendLine("- Početak: " + rec.StartedUtc.ToLocalTime().ToString("yyyy-MM-dd HH:mm")
+                              + " · poruka: " + rec.Messages.Count);
+                sb.AppendLine();
+                foreach (var m in rec.Messages)
+                {
+                    sb.AppendLine(m != null && m.Role == "user" ? "## 🧑 Korisnik" : "## 🤖 Claude");
+                    sb.AppendLine();
+                    sb.AppendLine(m == null ? "" : (m.Text ?? ""));
+                    sb.AppendLine();
+                }
+                File.WriteAllText(file, sb.ToString());
+            }
+            catch { }
+        }
+
+        internal static string JournalDir() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "vs-dnevnik");
 
         public static SessionRecord LoadArchived(string cwd, string id)
         {
