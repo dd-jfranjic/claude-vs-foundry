@@ -469,6 +469,10 @@ namespace ClaudeCode.VisualStudio
                         cliVersion = GetInstalledCliVersion();
                         latestCliVersion = GetLatestCliVersion();
                         cliOutdated = IsCliOutdated(cliVersion, latestCliVersion);
+                        // FORCED floor (v0.4.7): below the minimum the panel is known-broken
+                        // (e.g. no --effort) — run `claude update` automatically instead of
+                        // waiting for the user to notice a banner.
+                        EnsureMinimumCli(cliVersion);
                     }
 
                     _host.PostMessage("setup", new
@@ -486,6 +490,40 @@ namespace ClaudeCode.VisualStudio
         }
 
         // Runs `claude --version` and pulls the X.Y.Z it prints (e.g. "2.1.170 (Claude Code)").
+        // Oldest CLI the panel supports; below it `claude update` is started automatically
+        // (works for native and npm installs; winget/brew installs print guidance instead).
+        private const string MinCliVersion = "2.1.110";
+        private static bool _cliUpdateStarted;
+
+        private void EnsureMinimumCli(string installed)
+        {
+            try
+            {
+                if (_cliUpdateStarted || string.IsNullOrEmpty(installed)) return;
+                Version inst, min;
+                var cleaned = System.Text.RegularExpressions.Regex.Match(installed, @"\d+(\.\d+)+").Value;
+                if (!Version.TryParse(cleaned, out inst) || !Version.TryParse(MinCliVersion, out min)) return;
+                if (inst >= min) return;
+                _cliUpdateStarted = true;
+                _host.PostMessage("error", new
+                {
+                    message = "Claude CLI v" + cleaned + " is too old for this panel (needs " + MinCliVersion +
+                              "+). Running 'claude update' now — restart Visual Studio in a minute.",
+                });
+                var cli = ClaudeCliLocator.Locate();
+                if (cli == null) return;
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = cli.FileName,
+                    Arguments = (string.IsNullOrEmpty(cli.ArgumentPrefix) ? "" : cli.ArgumentPrefix + " ") + "update",
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                };
+                System.Diagnostics.Process.Start(psi);
+            }
+            catch { }
+        }
+
         private static string GetInstalledCliVersion()
         {
             try
@@ -688,7 +726,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.6",
+                version = "0.4.7",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new
@@ -1021,7 +1059,17 @@ namespace ClaudeCode.VisualStudio
             {
                 _host.PostMessage("status", new { state = "idle" });
                 Log.Write("claude process exited (code " + code + ")");
-                if (code != 0) _host.PostMessage("error", new { message = "claude exited (code " + code + "). Check that you are logged in (run 'claude' once in a terminal)." });
+                if (code != 0)
+                {
+                    var realErr = s.LastStderr;
+                    _host.PostMessage("error", new
+                    {
+                        message = "claude exited (code " + code + ")." +
+                                  (string.IsNullOrEmpty(realErr)
+                                      ? " Check that you are logged in (run 'claude' once in a terminal)."
+                                      : " CLI: " + realErr),
+                    });
+                }
             };
             s.Diagnostic += d => Log.Write("diag: " + d);
         }

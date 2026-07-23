@@ -148,8 +148,38 @@ namespace ClaudeCode.VisualStudio.Services
         /// Vertex). There the --model value must be that host's DEPLOYMENT (or profile) name —
         /// the first-party model ids the stock picker advertises do not exist on those hosts.
         /// </summary>
+        /// <summary>
+        /// The connection mode the installer recorded (~/.claude/auth-mode.json):
+        /// "claude" (subscription only) or "foundry". Null when no marker exists. The chosen
+        /// mode is a GUARANTEE — ClaudeSession scrubs conflicting env vars from the child
+        /// process, and the UI (picker/banner) follows the marker instead of ambient env.
+        /// </summary>
+        public static string ConfiguredAuthMode()
+        {
+            try
+            {
+                var p = System.IO.Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "auth-mode.json");
+                if (!System.IO.File.Exists(p)) return null;
+                using (var doc = System.Text.Json.JsonDocument.Parse(System.IO.File.ReadAllText(p)))
+                {
+                    if (doc.RootElement.TryGetProperty("mode", out var m))
+                    {
+                        var v = m.GetString();
+                        if (v == "claude" || v == "foundry") return v;
+                    }
+                }
+            }
+            catch { }
+            return null;
+        }
+
         public static bool UsesThirdPartyProvider()
         {
+            // The recorded mode wins over ambient env (subscription mode scrubs env anyway).
+            var mode = ConfiguredAuthMode();
+            if (mode == "claude") return false;
+            if (mode == "foundry") return true;
             string[] names = { "CLAUDE_CODE_USE_FOUNDRY", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX" };
             foreach (var name in names)
             {

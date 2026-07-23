@@ -75,6 +75,10 @@ namespace ClaudeCode.VisualStudio.Services
         public event Action<PermissionRequestInfo> PermissionRequest;
         public event Action<string> ErrorEvent;
         public event Action<int> Exited;
+
+        private readonly Queue<string> _lastStderr = new Queue<string>();
+        /// <summary>Last few stderr lines from the CLI (for a meaningful exit message).</summary>
+        public string LastStderr { get { lock (_lastStderr) { return string.Join(" | ", _lastStderr); } } }
         public event Action<string> Diagnostic;
 
         public ClaudeSession(ClaudeSessionOptions options)
@@ -119,6 +123,26 @@ namespace ClaudeCode.VisualStudio.Services
             psi.EnvironmentVariables["FORCE_COLOR"] = "0";
             psi.EnvironmentVariables["NO_COLOR"] = "1";
             psi.EnvironmentVariables["CLAUDE_CODE_ENTRYPOINT"] = "vs-extension";
+            // AUTH ENFORCEMENT (v0.4.7): the chosen connection mode is a GUARANTEE, not a
+            // hint. In subscription mode the CLI must never see an API key or third-party
+            // routing (a stray ANTHROPIC_API_KEY silently hijacks the Max/Pro plan and dies
+            // when its credits run out — first live smoke, 23.07). No official CLI setting
+            // forces a login method (docs checked), so the child env is scrubbed here.
+            var authMode = AccountService.ConfiguredAuthMode();
+            if (authMode == "claude")
+            {
+                foreach (var k in new[] { "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN",
+                    "CLAUDE_CODE_USE_FOUNDRY", "ANTHROPIC_FOUNDRY_API_KEY", "ANTHROPIC_FOUNDRY_AUTH_TOKEN",
+                    "ANTHROPIC_FOUNDRY_RESOURCE", "CLAUDE_CODE_USE_BEDROCK", "CLAUDE_CODE_USE_VERTEX",
+                    "ANTHROPIC_MODEL", "ANTHROPIC_DEFAULT_SONNET_MODEL", "ANTHROPIC_DEFAULT_OPUS_MODEL",
+                    "ANTHROPIC_DEFAULT_HAIKU_MODEL" })
+                    psi.EnvironmentVariables.Remove(k);
+            }
+            else if (authMode == "foundry")
+            {
+                foreach (var k in new[] { "ANTHROPIC_API_KEY", "ANTHROPIC_AUTH_TOKEN" })
+                    psi.EnvironmentVariables.Remove(k);
+            }
             if (_options.ExtraEnvironment != null)
             {
                 foreach (var kv in _options.ExtraEnvironment)
@@ -406,7 +430,18 @@ namespace ClaudeCode.VisualStudio.Services
                 string line;
                 while ((line = await reader.ReadLineAsync().ConfigureAwait(false)) != null)
                 {
-                    if (line.Length > 0) { Log.WriteVerbose("ERR " + line); Diagnostic?.Invoke("stderr: " + line); }
+                    if (line.Length > 0)
+                    {
+                        Log.WriteVerbose("ERR " + line);
+                        Diagnostic?.Invoke("stderr: " + line);
+                        // Last few stderr lines ride along with a non-zero exit so the panel
+                        // can show the REAL reason instead of a generic "check login" guess.
+                        lock (_lastStderr)
+                        {
+                            _lastStderr.Enqueue(line);
+                            while (_lastStderr.Count > 4) _lastStderr.Dequeue();
+                        }
+                    }
                 }
             }
             catch { }
