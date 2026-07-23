@@ -763,7 +763,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.11",
+                version = "0.4.12",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new

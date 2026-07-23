@@ -39,6 +39,10 @@ tool-window chat. One shared codebase, three VSIX flavors (linked `.cs` files).
   (`node --check media/app.js`) and keep the existing handler-map / popover patterns.
 - Tool-window id 0 is the primary (persists the workspace session); ids > 0 are scratch
   windows and must NEVER write to `SessionStore` (see v0.4.1 fix — regression risk).
+- The `.csproj` files list `Compile` items EXPLICITLY (old-style projects): a NEW `.cs`
+  file must be added to ALL THREE csproj files (main + Vs2017/Vs2019 linked entries) or it
+  silently never ships — the build stays green and the class just doesn't exist (bit us
+  in v0.4.0-0.4.11 with two command classes).
 - Version lives in THREE `source.extension.vsixmanifest` files + `ClaudeCodePackage.cs`
   + the `init` payload in `ClaudeChatControl.cs` — bump all five together.
 - New user-facing strings: English in the extension UI.

@@ -69,6 +69,8 @@
     <Compile Include="Vsct\PackageIds.cs" />
     <Compile Include="ClaudeCodePackage.cs" />
     <Compile Include="Commands\OpenChatCommand.cs" />
+    <Compile Include="Commands\NewChatWindowCommand.cs" />
+    <Compile Include="Commands\SendSelectionCommand.cs" />
     <Compile Include="ToolWindows\ClaudeChatToolWindow.cs" />
     <Compile Include="ToolWindows\ClaudeChatControl.cs" />
     <Compile Include="WebView\WebViewHost.cs" />

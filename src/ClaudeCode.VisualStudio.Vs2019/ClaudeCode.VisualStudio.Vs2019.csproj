@@ -90,6 +90,12 @@
     <Compile Include="..\ClaudeCode.VisualStudio\Commands\OpenChatCommand.cs">
       <Link>Commands\OpenChatCommand.cs</Link>
     </Compile>
+    <Compile Include="..\ClaudeCode.VisualStudio\Commands\NewChatWindowCommand.cs">
+      <Link>Commands\NewChatWindowCommand.cs</Link>
+    </Compile>
+    <Compile Include="..\ClaudeCode.VisualStudio\Commands\SendSelectionCommand.cs">
+      <Link>Commands\SendSelectionCommand.cs</Link>
+    </Compile>
     <Compile Include="..\ClaudeCode.VisualStudio\ToolWindows\ClaudeChatToolWindow.cs">
       <Link>ToolWindows\ClaudeChatToolWindow.cs</Link>
     </Compile>
