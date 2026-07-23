@@ -685,7 +685,14 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.2",
+                version = "0.4.3",
+                // Where the assistant's durable data lives — surfaced in the Usage popover so
+                // the user always knows what is stored where (and can inspect/delete it).
+                storage = new
+                {
+                    globalDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude"),
+                    history = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeCodeVS", "sessions"),
+                },
                 theme = _theme.GetThemeVariables(),
                 model = _model,
                 effort = _effort,

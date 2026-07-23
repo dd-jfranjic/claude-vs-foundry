@@ -22,6 +22,7 @@
   let fileList = [], atQuery = "", atItems = [], atIndex = 0;
   let models = [], modes = [], efforts = [], effortsByModel = {};
   let lastHistory = null;   // session-history popover data (null = loading)
+  let storageInfo = null;   // where rules/memory/history live (from init; shown in Usage)
   // effort "extrahigh" (CLI --effort xhigh) out of the box: the deepest sustained-reasoning
   // level — the right default for code analysis; per-directory persisted choices still win.
   let cur = { model: "default", mode: "default", effort: "extrahigh" };
@@ -64,7 +65,11 @@
     if (!currentTurn) { currentTurn = document.createElement("div"); currentTurn.className = "turn"; els.messages.appendChild(currentTurn); }
     return currentTurn;
   }
-  function endTurn() { currentTurn = null; currentAssistant = null; currentThinking = null; }
+  function endTurn() {
+    // Safety net: a thinking node whose buffer stayed empty (all deltas redacted) is noise.
+    if (currentThinking && currentThinking.node && !(currentThinking.buf || "").trim()) currentThinking.node.remove();
+    currentTurn = null; currentAssistant = null; currentThinking = null;
+  }
   function addNode(kind, dotKind) {
     const turn = ensureTurn();
     const node = document.createElement("div"); node.className = "node" + (kind ? " " + kind : "");
@@ -81,6 +86,10 @@
   }
   // Streamed extended-thinking: a collapsible "Thinking" node on the rail.
   function appendThinking(text) {
+    // Redacted/summarized thinking (seen on API-key auth) streams EMPTY deltas — creating a
+    // node for those leaves a ghost "Thinking" collapsible with nothing inside (first live
+    // smoke, 23.07). No node until the first non-empty delta.
+    if (!currentThinking && (!text || !text.trim())) return;
     removeThinking();
     if (!currentThinking) {
       const nd = addNode("think-node", "spin");
@@ -90,7 +99,7 @@
       const bd = document.createElement("div"); bd.className = "think-body";
       h.addEventListener("click", () => c.classList.toggle("open"));
       c.appendChild(h); c.appendChild(bd); nd.main.appendChild(c);
-      currentThinking = { bd: bd, buf: "", dot: nd.dot, label: h.querySelector(".think-label") };
+      currentThinking = { bd: bd, buf: "", dot: nd.dot, label: h.querySelector(".think-label"), node: nd.node };
     }
     currentThinking.buf += text || "";
     currentThinking.bd.textContent = currentThinking.buf;
@@ -170,6 +179,7 @@
 
   const handlers = {
     init: (p) => {
+      if (p.storage) storageInfo = p.storage;
       if (p.theme) applyTheme(p.theme);
       if (p.models) models = p.models;
       if (p.modes) modes = p.modes;
@@ -676,6 +686,14 @@
     h += kv("Cache hit", hit + "% (cache read is ~90% cheaper)");
     h += kv("Total tokens", (totalIn + totals.outputTokens).toLocaleString());
 
+    if (storageInfo) {
+      const sRow = (k, v) => '<div style="margin:2px 0"><span style="opacity:.65">' + k + ':</span> <code style="font-size:11px">' + window.md.esc(v) + '</code></div>';
+      h += '<div class="sec" style="margin-top:10px">Storage — where your data lives</div>';
+      h += sRow("Rules, commands, skills", storageInfo.globalDir + "  (CLAUDE.md · commands\\ · skills\\)");
+      h += sRow("Auto-memory (CLI notes)", storageInfo.globalDir + "\\projects\\");
+      h += sRow("Project memory", "memorija\\ folder inside the solution (when installed)");
+      h += sRow("Chat history (this panel)", storageInfo.history + "  (encrypted, per workspace)");
+    }
     showTop(h);
 
     const link = els.popover.querySelector(".ulink");
