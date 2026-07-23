@@ -245,6 +245,9 @@ namespace ClaudeCode.VisualStudio
                 case "openExternal":
                     TryOpenExternal(GetStr(message.Payload, "url"));
                     break;
+                case "openGlobalRules":
+                    OpenGlobalRulesInEditor();
+                    break;
                 case "openFile":
                     OpenFileFromWebview(message.Payload);
                     break;
@@ -266,6 +269,25 @@ namespace ClaudeCode.VisualStudio
 
         // Open a local file (optionally at a line) in the VS editor — used by the selection
         // chip on a sent message. Only opens an existing file in the editor; never executes.
+        // Opens the user's GLOBAL rules file (~/.claude/CLAUDE.md) directly in the VS
+        // editor — one click from the Usage/Storage popover. Path is resolved host-side.
+        private void OpenGlobalRulesInEditor()
+        {
+            ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
+            {
+                try
+                {
+                    var dir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
+                    Directory.CreateDirectory(dir);
+                    var p = Path.Combine(dir, "CLAUDE.md");
+                    if (!File.Exists(p))
+                        File.WriteAllText(p, "# Globalna pravila asistenta\n\n(ovaj fajl se cita na pocetku svakog razgovora — upisi svoja pravila)\n");
+                    await _ide.OpenFileAsync(p, null);
+                }
+                catch { }
+            }).FireAndForget();
+        }
+
         private void OpenFileFromWebview(JsonElement payload)
         {
             string path = GetStr(payload, "path");
@@ -726,7 +748,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.8",
+                version = "0.4.9",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new

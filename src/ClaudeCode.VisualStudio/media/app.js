@@ -690,6 +690,7 @@
       const sRow = (k, v, which) => '<div style="margin:2px 0"><span style="opacity:.65">' + k + ':</span> <code style="font-size:11px">' + window.md.esc(v) + '</code>' +
         (which ? ' <a href="#" class="sfold" data-which="' + which + '" style="font-size:11px">open</a>' : '') + '</div>';
       h += '<div class="sec" style="margin-top:10px">Storage — where your data lives</div>';
+      h += '<div style="margin:2px 0 8px"><a href="#" class="sfold-edit" style="font-weight:600">✏️ Open global rules (CLAUDE.md) in editor</a></div>';
       h += sRow("Knowledge vault (memory + journal, .md — Obsidian-ready)", (storageInfo.vault || "") + "  (memorija\\ · dnevnik\\)", "vault");
       h += sRow("Rules, commands, skills", storageInfo.globalDir + "  (CLAUDE.md · commands\\ · skills\\)", "global");
       h += sRow("Project folder (memorija\\)", "the open solution's folder", "project");
@@ -699,6 +700,8 @@
 
     els.popover.querySelectorAll(".sfold").forEach((a) =>
       a.addEventListener("click", (e) => { e.preventDefault(); post("openStorageFolder", { which: a.dataset.which }); }));
+    const ed = els.popover.querySelector(".sfold-edit");
+    if (ed) ed.addEventListener("click", (e) => { e.preventDefault(); post("openGlobalRules"); });
 
     const link = els.popover.querySelector(".ulink");
     if (link) link.addEventListener("click", function(e) { e.preventDefault(); post("openExternal", { url: link.dataset.url }); });
