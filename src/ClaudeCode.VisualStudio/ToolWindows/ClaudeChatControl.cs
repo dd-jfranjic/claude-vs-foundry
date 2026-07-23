@@ -726,7 +726,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.7",
+                version = "0.4.8",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new
@@ -1062,13 +1062,36 @@ namespace ClaudeCode.VisualStudio
                 if (code != 0)
                 {
                     var realErr = s.LastStderr;
-                    _host.PostMessage("error", new
+                    // Stale resume id: the saved conversation belongs to another working
+                    // directory/context (CLI conversations are cwd-scoped), so every retry
+                    // with the same id dies identically. Drop the id and continue as a
+                    // FRESH session — transcript and History stay intact. (First live
+                    // smoke, 23.07: "No conversation found with session ID".)
+                    if (!string.IsNullOrEmpty(realErr) &&
+                        realErr.IndexOf("No conversation found", StringComparison.OrdinalIgnoreCase) >= 0)
                     {
-                        message = "claude exited (code " + code + ")." +
-                                  (string.IsNullOrEmpty(realErr)
-                                      ? " Check that you are logged in (run 'claude' once in a terminal)."
-                                      : " CLI: " + realErr),
-                    });
+                        _pendingResumeId = null;
+                        if (_record != null)
+                        {
+                            _record.SessionId = null;
+                            if (_toolWindowId == 0) SessionStore.Save(_cwd, _record);
+                        }
+                        _session = null;
+                        _host.PostMessage("error", new
+                        {
+                            message = "Prethodni razgovor pripada drugom projektu/kontekstu — nastavljam kao novu sesiju (poruke i History ostaju). Samo ponovi poruku.",
+                        });
+                    }
+                    else
+                    {
+                        _host.PostMessage("error", new
+                        {
+                            message = "claude exited (code " + code + ")." +
+                                      (string.IsNullOrEmpty(realErr)
+                                          ? " Check that you are logged in (run 'claude' once in a terminal)."
+                                          : " CLI: " + realErr),
+                        });
+                    }
                 }
             };
             s.Diagnostic += d => Log.Write("diag: " + d);
