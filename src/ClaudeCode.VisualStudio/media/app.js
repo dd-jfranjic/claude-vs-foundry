@@ -487,6 +487,28 @@
     if (!cOpen && e.key === "ArrowDown" && histIndex !== -1 && caretOnLastLine()) { e.preventDefault(); histNext(); return; }
     if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); send(); }
   });
+  // Drag & drop fajlova bilo gdje na panel: putanje idu hostu kroz
+  // postMessageWithAdditionalObjects (jedini nacin da HTML drop preda PUNE putanje);
+  // stariji runtime bez te metode -> barem slike kroz FileReader fallback.
+  document.addEventListener("dragover", (e) => { e.preventDefault(); if (e.dataTransfer) e.dataTransfer.dropEffect = "copy"; });
+  document.addEventListener("drop", (e) => {
+    e.preventDefault();
+    const fs = e.dataTransfer && e.dataTransfer.files;
+    if (!fs || !fs.length) return;
+    const wv = window.chrome && window.chrome.webview;
+    if (wv && typeof wv.postMessageWithAdditionalObjects === "function") {
+      wv.postMessageWithAdditionalObjects({ type: "droppedFiles", payload: {} }, Array.from(fs));
+      return;
+    }
+    for (const f of fs) {
+      if (f.type && f.type.indexOf("image/") === 0) {
+        const rd = new FileReader();
+        rd.onload = () => { attachments.push({ mediaType: f.type, data: String(rd.result).split(",")[1], name: f.name }); renderAttachments(); };
+        rd.readAsDataURL(f);
+      }
+    }
+  });
+
   els.input.addEventListener("paste", (e) => {
     const items = e.clipboardData && e.clipboardData.items; if (!items) return;
     for (const it of items) if (it.type && it.type.startsWith("image/")) {

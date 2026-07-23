@@ -64,15 +64,12 @@ namespace ClaudeCode.VisualStudio
             };
             Content = _webView;
 
-            // Drag & drop (v0.4.10): WebView2 by default swallows external drops before WPF
-            // ever sees them — AllowExternalDrop=false routes them to these handlers, which
-            // receive FULL paths (Explorer and Solution Explorer both hand over FileDrop).
-            AllowDrop = true;
-            PreviewDragOver += OnFilesDragOver;
-            PreviewDrop += OnFilesDropped;
-            try { _webView.AllowExternalDrop = false; } catch { }
-
+            // Drag & drop (v0.4.13, ispravljen pristup): AllowExternalDrop=false NE prosljedjuje
+            // drop WPF-u nego ga ODBIJA (zabranjeni kursor — prvi zivi test). Ispravno: HTML
+            // prima drop, JS ga posalje kroz postMessageWithAdditionalObjects, a WebView2 nam
+            // preda CoreWebView2File objekte s PUNIM putanjama.
             _host = new WebViewHost(_webView);
+            _host.FilesDropped += HandleDroppedPaths;
             _host.MessageReceived += OnMessageReceived;
             _theme.ThemeChanged += vars => _host.PostMessage("theme", vars);
 
@@ -763,7 +760,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.12",
+                version = "0.4.13",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new
@@ -1162,27 +1159,15 @@ namespace ClaudeCode.VisualStudio
             }
         }
 
-        private void OnFilesDragOver(object sender, DragEventArgs e)
-        {
-            if (e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop))
-            {
-                e.Effects = DragDropEffects.Copy;
-                e.Handled = true;
-            }
-        }
-
         private static readonly string[] DroppableImageExts = { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp" };
 
         // Dropped images become attachments (same path as the + picker); everything else is
         // inserted as @path references the CLI resolves itself.
-        private void OnFilesDropped(object sender, DragEventArgs e)
+        private void HandleDroppedPaths(List<string> files)
         {
             try
             {
-                if (e.Data == null || !e.Data.GetDataPresent(DataFormats.FileDrop)) return;
-                var files = e.Data.GetData(DataFormats.FileDrop) as string[];
-                if (files == null || files.Length == 0) return;
-                e.Handled = true;
+                if (files == null || files.Count == 0) return;
                 var refs = new List<string>();
                 foreach (var f in files)
                 {

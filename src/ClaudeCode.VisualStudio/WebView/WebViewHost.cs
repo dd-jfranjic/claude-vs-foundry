@@ -34,6 +34,11 @@ namespace ClaudeCode.VisualStudio.WebView
         /// <summary>Raised once the WebView core is ready and the page has been navigated.</summary>
         public event Action Ready;
 
+        /// <summary>Full paths of files dropped onto the page. WebView2 hands them over as
+        /// <c>CoreWebView2File</c> additional objects (JS File has no path) — the only
+        /// supported way to get real paths out of an HTML drop.</summary>
+        public event Action<List<string>> FilesDropped;
+
         public WebViewHost(WebView2 webView)
         {
             _webView = webView;
@@ -134,6 +139,26 @@ namespace ClaudeCode.VisualStudio.WebView
 
         private void OnWebMessageReceived(object sender, CoreWebView2WebMessageReceivedEventArgs e)
         {
+            // Dropped files ride along as AdditionalObjects (postMessageWithAdditionalObjects).
+            try
+            {
+                if (e.AdditionalObjects != null && e.AdditionalObjects.Count > 0)
+                {
+                    var paths = new List<string>();
+                    foreach (var o in e.AdditionalObjects)
+                    {
+                        var f = o as CoreWebView2File;
+                        if (f != null && !string.IsNullOrEmpty(f.Path)) paths.Add(f.Path);
+                    }
+                    if (paths.Count > 0)
+                    {
+                        FilesDropped?.Invoke(paths);
+                        return;
+                    }
+                }
+            }
+            catch { }
+
             string json;
             try
             {
