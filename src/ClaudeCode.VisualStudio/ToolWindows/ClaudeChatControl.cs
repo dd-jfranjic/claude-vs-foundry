@@ -296,6 +296,13 @@ namespace ClaudeCode.VisualStudio
             }).FireAndForget();
         }
 
+        /// <summary>Editor context-menu entry point: drops text into the composer.</summary>
+        public void InsertIntoComposer(string text)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            _host.PostMessage("insertText", new { text });
+        }
+
         private void OpenFileFromWebview(JsonElement payload)
         {
             string path = GetStr(payload, "path");
@@ -756,7 +763,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.10",
+                version = "0.4.11",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new

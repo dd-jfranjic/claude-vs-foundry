@@ -7,6 +7,10 @@
       <Group guid="ClaudeCodeCmdSet" id="ClaudeCodeMenuGroup" priority="0x0600">
         <Parent guid="guidSHLMainMenu" id="IDG_VS_WNDO_OTRWNDWS1" />
       </Group>
+      <!-- Editor (code window) right-click context menu. -->
+      <Group guid="ClaudeCodeCmdSet" id="EditorContextGroup" priority="0x0100">
+        <Parent guid="guidSHLMainMenu" id="IDM_VS_CTXT_CODEWIN" />
+      </Group>
     </Groups>
 
     <Buttons>
@@ -34,6 +38,17 @@
           <LocCanonicalName>.View.ClaudeCodeNewWindow</LocCanonicalName>
         </Strings>
       </Button>
+
+      <!-- Right-click in the editor: sends the selection (or active file) to the chat. -->
+      <Button guid="ClaudeCodeCmdSet" id="SendSelectionToChat" priority="0x0100" type="Button">
+        <Parent guid="ClaudeCodeCmdSet" id="EditorContextGroup" />
+        <Icon guid="ImageCatalogGuid" id="CommentSparkle" />
+        <CommandFlag>IconIsMoniker</CommandFlag>
+        <Strings>
+          <ButtonText>Send to Claude Code</ButtonText>
+          <LocCanonicalName>.Edit.SendToClaudeCode</LocCanonicalName>
+        </Strings>
+      </Button>
     </Buttons>
   </Commands>
 
@@ -52,6 +67,8 @@
       <IDSymbol name="ClaudeToolbarGroup" value="0x1030" />
       <IDSymbol name="OpenClaudeChat" value="0x0100" />
       <IDSymbol name="NewClaudeChatWindow" value="0x0101" />
+      <IDSymbol name="SendSelectionToChat" value="0x0102" />
+      <IDSymbol name="EditorContextGroup" value="0x1040" />
     </GuidSymbol>
 
     <!-- VS shell main menu + the View-menu groups we anchor to. Defined inline so the .vsct does
@@ -59,6 +76,7 @@
     <GuidSymbol name="guidSHLMainMenu" value="{D309F791-903F-11D0-9EFC-00A0C911004F}">
       <IDSymbol name="IDG_VS_VIEW_ORG_WINDOWS" value="0x0721" />
       <IDSymbol name="IDG_VS_WNDO_OTRWNDWS1" value="0x019F" />
+      <IDSymbol name="IDM_VS_CTXT_CODEWIN" value="0x040D" />
     </GuidSymbol>
 
     <!-- Visual Studio Image Catalog (KnownMonikers). CommentSparkle = 4059. -->
