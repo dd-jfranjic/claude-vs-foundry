@@ -197,7 +197,7 @@ namespace ClaudeCode.VisualStudio.Services
 
         /// <summary>
         /// Plain-Markdown mirror of the conversation ("dnevnik") — one readable .md per
-        /// session under <c>~/.claude/vs-dnevnik</c>, rewritten after every turn. DELIBERATELY
+        /// session under <c>~\ClaudeVault\dnevnik</c>, rewritten after every turn. DELIBERATELY
         /// unencrypted: the point is that the user (and Claude itself, when asked "what did we
         /// do yesterday?") can open and read it. The encrypted per-workspace store stays the
         /// restore source of truth.
@@ -237,8 +237,13 @@ namespace ClaudeCode.VisualStudio.Services
             catch { }
         }
 
-        internal static string JournalDir() => Path.Combine(
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude", "vs-dnevnik");
+        /// <summary>The user-visible knowledge vault (plain .md; open it in Obsidian for the
+        /// graph view). Journal sessions live in <c>dnevnik\</c>, durable notes in
+        /// <c>memorija\</c> (created by the setup).</summary>
+        internal static string VaultDir() => Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "ClaudeVault");
+
+        internal static string JournalDir() => Path.Combine(VaultDir(), "dnevnik");
 
         public static SessionRecord LoadArchived(string cwd, string id)
         {

@@ -690,11 +690,10 @@
       const sRow = (k, v, which) => '<div style="margin:2px 0"><span style="opacity:.65">' + k + ':</span> <code style="font-size:11px">' + window.md.esc(v) + '</code>' +
         (which ? ' <a href="#" class="sfold" data-which="' + which + '" style="font-size:11px">open</a>' : '') + '</div>';
       h += '<div class="sec" style="margin-top:10px">Storage — where your data lives</div>';
+      h += sRow("Knowledge vault (memory + journal, .md — Obsidian-ready)", (storageInfo.vault || "") + "  (memorija\\ · dnevnik\\)", "vault");
       h += sRow("Rules, commands, skills", storageInfo.globalDir + "  (CLAUDE.md · commands\\ · skills\\)", "global");
-      h += sRow("Auto-memory (CLI notes)", storageInfo.globalDir + "\\projects\\", "global");
       h += sRow("Project folder (memorija\\)", "the open solution's folder", "project");
       h += sRow("Chat history (this panel)", storageInfo.history + "  (encrypted)", "history");
-      h += sRow("Session journal (readable .md, plain text!)", storageInfo.globalDir + "\\vs-dnevnik\\", "journal");
     }
     showTop(h);
 

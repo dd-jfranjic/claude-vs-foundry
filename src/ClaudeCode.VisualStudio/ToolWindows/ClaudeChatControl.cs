@@ -688,12 +688,13 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.5",
+                version = "0.4.6",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new
                 {
                     globalDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude"),
+                    vault = SessionStore.VaultDir(),
                     history = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeCodeVS", "sessions"),
                 },
                 theme = _theme.GetThemeVariables(),
@@ -1284,6 +1285,9 @@ namespace ClaudeCode.VisualStudio
                         break;
                     case "journal":
                         path = SessionStore.JournalDir();
+                        break;
+                    case "vault":
+                        path = SessionStore.VaultDir();
                         break;
                     case "project":
                         path = _cwd;
