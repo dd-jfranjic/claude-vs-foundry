@@ -687,14 +687,18 @@
     h += kv("Total tokens", (totalIn + totals.outputTokens).toLocaleString());
 
     if (storageInfo) {
-      const sRow = (k, v) => '<div style="margin:2px 0"><span style="opacity:.65">' + k + ':</span> <code style="font-size:11px">' + window.md.esc(v) + '</code></div>';
+      const sRow = (k, v, which) => '<div style="margin:2px 0"><span style="opacity:.65">' + k + ':</span> <code style="font-size:11px">' + window.md.esc(v) + '</code>' +
+        (which ? ' <a href="#" class="sfold" data-which="' + which + '" style="font-size:11px">open</a>' : '') + '</div>';
       h += '<div class="sec" style="margin-top:10px">Storage — where your data lives</div>';
-      h += sRow("Rules, commands, skills", storageInfo.globalDir + "  (CLAUDE.md · commands\\ · skills\\)");
-      h += sRow("Auto-memory (CLI notes)", storageInfo.globalDir + "\\projects\\");
-      h += sRow("Project memory", "memorija\\ folder inside the solution (when installed)");
-      h += sRow("Chat history (this panel)", storageInfo.history + "  (encrypted, per workspace)");
+      h += sRow("Rules, commands, skills", storageInfo.globalDir + "  (CLAUDE.md · commands\\ · skills\\)", "global");
+      h += sRow("Auto-memory (CLI notes)", storageInfo.globalDir + "\\projects\\", "global");
+      h += sRow("Project folder (memorija\\)", "the open solution's folder", "project");
+      h += sRow("Chat history (this panel)", storageInfo.history + "  (encrypted)", "history");
     }
     showTop(h);
+
+    els.popover.querySelectorAll(".sfold").forEach((a) =>
+      a.addEventListener("click", (e) => { e.preventDefault(); post("openStorageFolder", { which: a.dataset.which }); }));
 
     const link = els.popover.querySelector(".ulink");
     if (link) link.addEventListener("click", function(e) { e.preventDefault(); post("openExternal", { url: link.dataset.url }); });

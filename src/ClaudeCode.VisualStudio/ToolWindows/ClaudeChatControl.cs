@@ -175,6 +175,9 @@ namespace ClaudeCode.VisualStudio
                 case "loadSession":
                     HandleLoadSession(message.Payload);
                     break;
+                case "openStorageFolder":
+                    HandleOpenStorageFolder(message.Payload);
+                    break;
                 case "deleteSession":
                     HandleDeleteSession(message.Payload);
                     break;
@@ -685,7 +688,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.3",
+                version = "0.4.4",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new
@@ -1263,6 +1266,33 @@ namespace ClaudeCode.VisualStudio
                 showThinking = _showThinking,
             });
             SendHistoryList();
+        }
+
+        // Opens one of the KNOWN storage folders in Explorer. The webview only names WHICH
+        // folder ("global"/"history"/"project") — the path is resolved here, so a compromised
+        // webview can never make us shell-execute an arbitrary path.
+        private void HandleOpenStorageFolder(JsonElement payload)
+        {
+            try
+            {
+                string which = GetStr(payload, "which") ?? "global";
+                string path;
+                switch (which)
+                {
+                    case "history":
+                        path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "ClaudeCodeVS", "sessions");
+                        break;
+                    case "project":
+                        path = _cwd;
+                        break;
+                    default:
+                        path = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
+                        break;
+                }
+                Directory.CreateDirectory(path);
+                System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo(path) { UseShellExecute = true });
+            }
+            catch { }
         }
 
         private void HandleDeleteSession(JsonElement payload)
