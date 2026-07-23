@@ -1,0 +1,11 @@
+{
+  "permissions": { "defaultMode": "default" },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [ { "type": "command", "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .claude/hooks/protect-locked.ps1" } ]
+      }
+    ]
+  }
+}
