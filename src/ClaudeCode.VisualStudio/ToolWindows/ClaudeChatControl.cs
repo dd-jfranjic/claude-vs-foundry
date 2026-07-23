@@ -64,6 +64,14 @@ namespace ClaudeCode.VisualStudio
             };
             Content = _webView;
 
+            // Drag & drop (v0.4.10): WebView2 by default swallows external drops before WPF
+            // ever sees them — AllowExternalDrop=false routes them to these handlers, which
+            // receive FULL paths (Explorer and Solution Explorer both hand over FileDrop).
+            AllowDrop = true;
+            PreviewDragOver += OnFilesDragOver;
+            PreviewDrop += OnFilesDropped;
+            try { _webView.AllowExternalDrop = false; } catch { }
+
             _host = new WebViewHost(_webView);
             _host.MessageReceived += OnMessageReceived;
             _theme.ThemeChanged += vars => _host.PostMessage("theme", vars);
@@ -748,7 +756,7 @@ namespace ClaudeCode.VisualStudio
         {
             _host.PostMessage("init", new
             {
-                version = "0.4.9",
+                version = "0.4.10",
                 // Where the assistant's durable data lives — surfaced in the Usage popover so
                 // the user always knows what is stored where (and can inspect/delete it).
                 storage = new
@@ -1147,6 +1155,54 @@ namespace ClaudeCode.VisualStudio
             }
         }
 
+        private void OnFilesDragOver(object sender, DragEventArgs e)
+        {
+            if (e.Data != null && e.Data.GetDataPresent(DataFormats.FileDrop))
+            {
+                e.Effects = DragDropEffects.Copy;
+                e.Handled = true;
+            }
+        }
+
+        private static readonly string[] DroppableImageExts = { ".png", ".jpg", ".jpeg", ".gif", ".webp", ".bmp" };
+
+        // Dropped images become attachments (same path as the + picker); everything else is
+        // inserted as @path references the CLI resolves itself.
+        private void OnFilesDropped(object sender, DragEventArgs e)
+        {
+            try
+            {
+                if (e.Data == null || !e.Data.GetDataPresent(DataFormats.FileDrop)) return;
+                var files = e.Data.GetData(DataFormats.FileDrop) as string[];
+                if (files == null || files.Length == 0) return;
+                e.Handled = true;
+                var refs = new List<string>();
+                foreach (var f in files)
+                {
+                    var ext = (Path.GetExtension(f) ?? "").ToLowerInvariant();
+                    if (Array.IndexOf(DroppableImageExts, ext) >= 0) AttachImageFromPath(f);
+                    else refs.Add("@" + f);
+                }
+                if (refs.Count > 0) _host.PostMessage("insertText", new { text = string.Join(" ", refs) + " " });
+            }
+            catch { }
+        }
+
+        private void AttachImageFromPath(string f)
+        {
+            try
+            {
+                var data = Convert.ToBase64String(File.ReadAllBytes(f));
+                _host.PostMessage("attachImage", new
+                {
+                    mediaType = MediaTypeForExt(Path.GetExtension(f)),
+                    data,
+                    name = Path.GetFileName(f),
+                });
+            }
+            catch { }
+        }
+
         private void PickImage()
         {
             ThreadHelper.JoinableTaskFactory.RunAsync(async () =>
@@ -1159,20 +1215,7 @@ namespace ClaudeCode.VisualStudio
                     Multiselect = true,
                 };
                 if (dlg.ShowDialog() != true) return;
-                foreach (var f in dlg.FileNames)
-                {
-                    try
-                    {
-                        var data = Convert.ToBase64String(File.ReadAllBytes(f));
-                        _host.PostMessage("attachImage", new
-                        {
-                            mediaType = MediaTypeForExt(Path.GetExtension(f)),
-                            data,
-                            name = Path.GetFileName(f),
-                        });
-                    }
-                    catch { }
-                }
+                foreach (var f in dlg.FileNames) AttachImageFromPath(f);
             }).FireAndForget();
         }
 
